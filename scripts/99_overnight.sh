@@ -18,13 +18,14 @@ guard() { local f; f=$(free_gb); if [ "${f:-0}" -lt "$MIN_FREE_GB" ]; then
   echo "[$(stamp)] disk ${f}GB ok"; }
 stage() { echo "=== [$(stamp)] STAGE: $* ==="; }
 
-# Full-size caps (test pool ~13k claims; calib carved from train). Tuned for overnight.
-FULL_TRAIN=${FULL_TRAIN:-10000}
-FULL_TEST=${FULL_TEST:-9000}
-OOD_TRAIN=${OOD_TRAIN:-8000}
-OOD_TEST=${OOD_TEST:-4000}
-OOD_OOD=${OOD_OOD:-5000}
-MAXLEN=${MAXLEN:-384}   # shorter seq -> faster on CPU; modest accuracy cost (logged)
+# Caps sized so even the torch fallback (~0.6s/claim) finishes overnight; ONNX int8 is ~4x
+# faster. Enough calib positives for alpha=0.01 to be feasible (calib_conf ~3k * ~11% ~ 330).
+FULL_TRAIN=${FULL_TRAIN:-6000}
+FULL_TEST=${FULL_TEST:-6000}
+OOD_TRAIN=${OOD_TRAIN:-5000}
+OOD_TEST=${OOD_TEST:-3000}
+OOD_OOD=${OOD_OOD:-4000}
+MAXLEN=${MAXLEN:-320}   # shorter seq -> faster on CPU; modest accuracy cost (logged)
 
 # Export ONNX int8 FIRST so scoring uses the fast VNNI path. If int8 export fails the
 # backend silently stays torch via the BK fallback below.
