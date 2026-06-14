@@ -99,6 +99,38 @@ RAGTruth cache + the verifier model cached. To finish from cold:
 5. `make test` on the box (full pytest incl air-gap). Then write the §12 DoD checklist + final
    PROGRESS summary. Co-hosted pqcsched job + udaan Docker stack must stay untouched.
 
+## Overnight run LAUNCHED (2026-06-14 ~23:03 UTC)
+- `scripts/99_overnight.sh` running detached (`setsid`, survives SSH drops + session end) on the
+  box, logging to `~/praman/overnight.log`. Caps: full 6000 train + 6000 test, OOD 5000/3000/4000,
+  seq 320. Stages: ONNX int8 export+latency -> full score (ONNX int8 if export ok, else torch) +
+  pipeline -> OOD robustness -> Indic -> artifact assemble -> report token-fill + plots -> pytest.
+- Produces: runs/full/{metrics,latency,tokens}.json, runs/ood/robustness.json, runs/indic/indic.json,
+  artifacts/{verifier_onnx,praman-verifier}/, plots, and fills REPORT.md + docs/model-card.md.
+- To finalize after it completes: `bash scripts/sync_results.sh` (pulls the small json + filled
+  docs back to d:\praman), then commit, write the DoD §12 checklist + final PROGRESS summary.
+- Box contention: co-hosted `pqcsched` keeps load ~12-17; our job is nice'd and slow but steady.
+  SSH drops under load are expected; the run is detached so they don't matter.
+
+## Definition of Done (§12) — live status
+- [x] `pip install -e .` in a fresh venv on the VM; package imports, CPU-only verified.
+- [~] `verify()` end-to-end on CPU with networking disabled — code + air-gap test written
+      (tests/test_verify_airgap.py pass with fake verifier); real-artifact demo (scripts/80_demo.py)
+      runs after the overnight assembles artifacts/praman-verifier.
+- [~] `pytest` covering §9.7 — written + passing on the fake-verifier paths; full suite runs as the
+      overnight's last stage on the box.
+- [~] Artifacts saved + reloadable offline; verify() matches §11 schema — assembled by 70_build_artifact
+      in the overnight; schema enforced by pipeline + tests.
+- [~] Guarantee: realized FNR ≤ α on RAGTruth test at α∈{0.01,0.05,0.10} + coverage + OOD degradation
+      + conditional/non-exchangeable — pending runs/full/metrics.json + runs/ood/robustness.json
+      (overnight). CRC math itself already validated (synthetic + independent bound + MAPIE).
+- [~] Detection-quality vs HHEM/MiniCheck + calibration ECE before/after — pending metrics.json.
+- [~] Indic eval — pending runs/indic/indic.json (overnight).
+- [x] ONNX int8 export DONE (model_int8.onnx 244MB); latency benchmark pending latency.json.
+- [x] Audit JSONL export + EU-AI-Act/NIST/HIPAA field mapping (docs/regulator-field-mapping.md).
+- [x] HF card + REPORT.md + README.md with §4 honest-scope VERBATIM.
+- [x] requirements.lock.txt committed; one-command reproduction via Makefile.
+- [~] PROGRESS.md decision log (this file) + final results summary (added when numbers land).
+
 ## Decisions still autonomous / pending
 - Realized-risk-<=-alpha demonstration on the RAGTruth test slice: IN PROGRESS (thin slice).
 - OOD (leave-one-domain-out Data2txt), conditional (Mondrian) + non-exchangeable variants,
