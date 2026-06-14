@@ -1,0 +1,21 @@
+# Conformal risk control. Positive class = "ungrounded/hallucinated".
+# We bound the missed-hallucination rate (auto-approving an ungrounded claim) <= alpha.
+method: crc                 # crc (recall/FNR bound) | rcps | ltt
+alphas: [0.01, 0.05, 0.10]  # target missed-approval rates to validate
+delta: 0.05                 # confidence 1 - delta for the high-prob bounds (RCPS/LTT)
+
+rcps:
+  bound: hoeffding          # hoeffding | bernstein | wsr (validate against MAPIE)
+ltt:
+  enabled: true             # secondary control: bound over-flagging (precision) too
+  fdr: 0.25
+
+# Honesty protocol: validate over repeated calib/test resamples, report mean realized
+# risk AND fraction of splits exceeding alpha. NEVER tune the method until a split passes.
+validation:
+  n_bootstrap: 200
+  resample: split           # resample the calib/test partition each trial
+robustness:
+  conditional: [dataset]     # Mondrian groups for group-conditional CRC
+  non_exchangeable: true     # nearest-neighbour reweighted conformal for the OOD slice
+  nn_k: 50

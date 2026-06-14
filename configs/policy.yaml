@@ -1,0 +1,16 @@
+# Decision policy. The DEPLOYER picks alpha + which classes are zero-tolerance.
+# PRAMAN right-sizes review; it never removes the human on catastrophic/irreversible acts.
+default:
+  alpha: 0.05
+  class: general
+  severity: normal          # normal | high
+classes:
+  clinical:   { alpha: 0.01, severity: high }   # high-severity => never auto-accept; escalate uncertainty
+  financial:  { alpha: 0.01, severity: high }
+  legal:      { alpha: 0.05, severity: high }
+  general:    { alpha: 0.05, severity: normal }
+  bulk:       { alpha: 0.10, severity: normal } # reversible/high-volume => most automation
+
+# Aggregate output decision: any reject/escalate on a high-severity class => escalate the output.
+aggregate:
+  high_severity_any_flag: escalate

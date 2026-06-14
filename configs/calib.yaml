@@ -1,0 +1,7 @@
+# Calibration: turn the raw "supported" score into a real probability.
+method: temperature        # temperature | isotonic | none (the deployed default)
+also_fit:                  # additionally fit + report these for comparison
+  - isotonic
+ece_bins: 15
+report: [ece, brier]
+# Reliability diagram emitted to runs/<id>/plots/reliability.png

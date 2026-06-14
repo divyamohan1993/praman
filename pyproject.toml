@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "praman"
+version = "0.1.0"
+description = "On-prem, CPU-only, Indic-first grounded-claim verifier with distribution-free risk control and a regulator-ready audit trail."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Divya Mohan", email = "divyamohan1993@gmail.com" }]
+keywords = ["hallucination", "verification", "conformal", "risk-control", "nli", "faithfulness", "on-prem", "indic", "audit"]
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3.12",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# Runtime deps are pinned in requirements.lock.txt (committed). We keep the
+# declared set loose here on purpose: the lock file is the reproducible artifact.
+dependencies = [
+  "torch",
+  "transformers",
+  "numpy",
+  "scipy",
+  "scikit-learn",
+  "pyyaml",
+  "orjson",
+]
+
+[project.optional-dependencies]
+data = ["datasets", "pandas"]
+onnx = ["onnx", "onnxruntime", "optimum[onnxruntime]"]
+calib = ["netcal", "mapie"]
+plots = ["matplotlib"]
+serve = ["fastapi", "uvicorn", "pydantic"]
+dev = ["pytest"]
+
+[project.scripts]
+praman = "praman.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

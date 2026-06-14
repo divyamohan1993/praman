@@ -1,0 +1,24 @@
+# Data: RAGTruth (brief PRIMARY). Non-gated, downloaded from GitHub at build time.
+# Claim-level groundedness derived from real span annotations (see src/praman/data.py).
+source:
+  name: RAGTruth
+  github_base: https://raw.githubusercontent.com/ParticleMedia/RAGTruth/main/dataset
+  files: [source_info.jsonl, response.jsonl]
+
+# Within RAGTruth's official TRAIN pool we carve calibration (kept DISJOINT from the
+# official TEST pool -> conformal coverage hygiene). test = official RAGTruth test.
+splits:
+  train: 0.20       # verifier-fit reserve (unused for the pretrained NLI verifier)
+  calib_temp: 0.30  # temperature/isotonic fit
+  # calib_conf gets the remainder of train (~0.50): conformal threshold selection
+seed: 1337
+
+# Caps keep the thin-slice + overnight wall-clock sane on the 12-vCPU box (~90k claims total).
+# Raised for the final full run (scripts/90_report.py FULL=1).
+limits:
+  max_train: 8000   # claims drawn from the official train pool (split into the calib sets)
+  max_test: 4000    # claims from the official test pool (held-out guarantee)
+  max_ood: 4000     # claims for the leave-one-domain-out OOD slice
+
+# OOD axis: hold out one task type, in-domain = the other two (leave-one-domain-out).
+ood_task: Data2txt   # Data2txt is the most structurally distinct (structured-data -> text)

@@ -1,0 +1,23 @@
+# Verifier model. ONE small CPU model (disk-constrained box). Chosen for robustness +
+# the (claim, evidence)->P(supported) interface. NLI entailment = "evidence supports claim".
+model:
+  # 3-class NLI cross-encoder (entailment / neutral / contradiction). Robust, ~440MB, CPU-fast.
+  hf_id: MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli
+  kind: nli                 # nli | faithfulness_binary
+  # For NLI we read P(supported) = P(entailment). Label order is read from model.config
+  # id2label at load time and matched case-insensitively; entailment_label overrides if needed.
+  entailment_label: entailment
+  max_length: 512
+  # premise = evidence, hypothesis = claim (evidence entails claim => supported)
+  premise: evidence
+  hypothesis: claim
+
+scoring:
+  multi_passage: max        # claim grounded if ANY passage supports it -> take max over passages
+  batch_size: 16
+  evidence_char_cap: 4000   # truncate very long evidence before tokenization (latency guard)
+
+onnx:
+  enabled: true
+  quantize: int8            # VNNI on Genoa; fall back to fp32 if op gaps (logged)
+  opset: 17
