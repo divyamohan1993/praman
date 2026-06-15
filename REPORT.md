@@ -102,11 +102,13 @@ Bootstrap honesty (fraction of resampled calib/test splits whose realized rate e
 
 Holding out the Data2txt task type as out-of-distribution, the exchangeability assumption is stressed. The honest degradation shows up in **detection, not in the FNR table**: the verifier's discrimination on the held-out domain collapses to **AUROC 0.465, below random**, versus 0.605 in-domain. We report it rather than hide it:
 
-| alpha | in-domain test FNR | OOD FNR (pooled CRC) |
-| --- | --- | --- |
-| 0.01 | 0.0000 | 0.0000 |
-| 0.05 | 0.0519 | 0.0087 |
-| 0.10 | 0.1688 | 0.0758 |
+| alpha | in-domain FNR | in-domain coverage | OOD FNR | OOD coverage |
+| --- | --- | --- | --- | --- |
+| 0.01 | 0.0000 | 0.000 | 0.0000 | 0.000 |
+| 0.05 | 0.0519 | 0.119 | 0.0087 | 0.042 |
+| 0.10 | 0.1688 | 0.273 | 0.0758 | 0.143 |
+
+The coverage columns are the evidence for the claim: at matched α the OOD slice auto-approves roughly **half to a third** of what it does in-domain (0.042 vs 0.119 at α=0.05; 0.143 vs 0.273 at α=0.10). The bound is met on the shifted domain only by abstaining more, which is the cost made visible. Group-conditional (Mondrian) thresholds per task confirm the heterogeneity: at α=0.10 the QA group runs FNR 0.149 at coverage 0.288 while Summary runs FNR 0.10 at coverage 0.15, so a single pooled threshold hides per-group differences that conditioning surfaces.
 
 Partial recovery from the non-exchangeable (nearest-neighbour reweighted) variant:
 

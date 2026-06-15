@@ -89,8 +89,10 @@ def render_plots(run_id: str) -> None:
     from praman.plots import desired_vs_realized, reliability_diagram, risk_coverage
     out = ROOT / "runs" / run_id / "plots"
     m = _load(run_id, "metrics.json") or {}
-    if m.get("calibration", {}).get("after", {}).get("reliability_after"):
-        reliability_diagram(m["calibration"]["after"]["reliability_after"], out / "reliability.png")
+    cal = m.get("calibration", {})
+    rel = cal.get("reliability_after") or cal.get("after", {}).get("reliability_after")
+    if rel:
+        reliability_diagram(rel, out / "reliability.png")
     g = m.get("guarantee_single_split")
     if g:
         desired_vs_realized(g, out / "desired_vs_realized.png")

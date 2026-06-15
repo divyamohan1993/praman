@@ -26,13 +26,14 @@ out = p.verify(
     evidence=["... the agency approved the drug in 2021 ...", "..."],
     alpha=0.05, policy={"class": "clinical", "severity": "high"},
 )
-# out == {
+# out (illustrative of the schema, not literal output for this input; the v0 sentence-level
+#      decomposer does not split a single "X and Y" sentence) == {
 #   "claims": [
 #     {"text": "The drug was approved in 2019", "p_grounded": 0.08,
 #      "evidence_span": "approved the drug in 2021", "decision": "reject"},
 #     {"text": "reduces risk by 40%", "p_grounded": 0.55, "decision": "escalate"},
 #   ],
-#   "output_decision": "escalate",       # aggregate: any reject/escalate on high-severity → escalate
+#   "output_decision": "escalate",       # aggregate: any reject/escalate on high-severity -> escalate
 #   "alpha": 0.05,
 #   "audit": [ {...}, {...} ],           # one record per claim
 # }
