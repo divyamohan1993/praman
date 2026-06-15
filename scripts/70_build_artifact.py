@@ -37,18 +37,18 @@ def main() -> None:
     from praman.verifier import VerifierConfig
     vcfg = VerifierConfig.from_yaml()
 
-    # verifier weights
-    src = ROOT / args.verifier_src
+    # Verifier weights: use the TORCH model for the runtime artifact (correct numerics).
+    # ONNX int8 of this DeBERTa-v3 degrades accuracy (disentangled-attention export), so int8
+    # is kept ONLY as the latency benchmark, not the scoring path. backend = torch.
     dst = out / "verifier"
-    if src.exists():
-        if dst.exists():
-            shutil.rmtree(dst)
-        shutil.copytree(src, dst)
-        meta_path = src / "verifier_meta.yaml"
-        id2label = yaml.safe_load(meta_path.read_text(encoding="utf-8"))["id2label"] if meta_path.exists() else {}
-    else:
-        print(f"[warn] verifier src {src} missing; manifest will reference hf_id {vcfg.hf_id}")
-        id2label = {}
+    if dst.exists():
+        shutil.rmtree(dst)
+    print(f"[artifact] saving torch verifier {vcfg.hf_id} -> {dst}")
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+    _m = AutoModelForSequenceClassification.from_pretrained(vcfg.hf_id)
+    _m.save_pretrained(dst)
+    AutoTokenizer.from_pretrained(vcfg.hf_id).save_pretrained(dst)
+    id2label = getattr(_m.config, "id2label", {}) or {}
 
     for name in ("calibration.json", "riskcontrol.json"):
         s = run / name

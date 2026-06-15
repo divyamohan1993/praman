@@ -1,0 +1,12 @@
+{
+  "model": "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli",
+  "n_bench": 200,
+  "export": {
+    "int8": true,
+    "fp32": true
+  },
+  "fp32_ms_per_claim": 1030.1411736011505,
+  "int8_ms_per_claim": 508.783700466156,
+  "claims_per_sec": 1.9654717694057091,
+  "speedup_vs_torch": 2.024713395215527
+}

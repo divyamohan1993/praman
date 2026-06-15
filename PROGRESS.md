@@ -131,6 +131,35 @@ RAGTruth cache + the verifier model cached. To finish from cold:
 - [x] requirements.lock.txt committed; one-command reproduction via Makefile.
 - [~] PROGRESS.md decision log (this file) + final results summary (added when numbers land).
 
+## Latency (DoD deliverable) measured (2026-06-14)
+- ONNX int8 confirmed WORKING (the benchmark ran ONNX inference). On the contended box
+  (load ~17, seq256, n=200): **int8 508.8 ms/claim, torch fp32 1030.1 ms/claim, 2.02x speedup.**
+- Honest note for the report: 509 ms is far above the brief's <50 ms aspiration because of
+  (a) heavy co-host contention, (b) a 184M-param DeBERTa-base, (c) seq256. Uncontended this
+  roughly halves; a smaller verifier (DeBERTa-xsmall) or fewer threads in contention would
+  close most of the rest. We report the real number and the cause, not the aspiration.
+- Implication: full + OOD scoring ~3.5 h at this rate; the headline (full pipeline) lands
+  first (~100 min into scoring), then OOD, then Indic, then report-fill. Graceful degradation
+  if the night is short: the guarantee headline completes even if Indic/report get cut.
+
+## CRITICAL CORRECTION — ONNX int8 unusable for scoring; torch is the scientific path (2026-06-15)
+- The first "headline" was computed on ONNX int8 scores that were NEVER validated against
+  torch. Diagnostic (`scripts/_probe_onnx_agree.py`): ONNX int8 vs torch on 32 claims gives
+  max|diff|=0.885, mean=0.22, **corr=0.72** -> ONNX scores are CORRUPTED.
+- Cause isolated: forcing the hf_id tokenizer changed nothing (corr still 0.72) -> NOT the
+  tokenizer; it is the **int8 quantization/export of DeBERTa-v3** (disentangled attention is
+  known-fragile for ONNX). The brief anticipated this ("int8 op gaps -> fall back, note it").
+- Consequence: the first metrics (AUROC 0.61, ECE up, 2-19% coverage) are ARTIFACTS of
+  corrupted scores, not real verifier quality. DISCARDED. Guarantee FNR<=alpha still held even
+  on garbage (CRC is distribution-free) but the detection/coverage were meaningless.
+- FIX (advisor-endorsed): score ALL scientific runs with **torch** (correct). Keep ONNX int8
+  ONLY as the latency deliverable (509ms vs 1030ms torch, 2x) with an honest accuracy caveat.
+  The offline artifact (70_build_artifact) now ships the TORCH model, backend=torch.
+- METHODOLOGY LESSON (write into the report): never compute metrics on an inference path you
+  have not validated against the reference. corr>=0.97 is now a hard gate before any long run.
+- Re-running full + OOD + Indic on torch (load eased to ~8; ~2.3h). Caps cut: full 3000 train
+  / 2000 test, OOD 2500/1500/2500, Indic 2000. This run's headline is the real one.
+
 ## Decisions still autonomous / pending
 - Realized-risk-<=-alpha demonstration on the RAGTruth test slice: IN PROGRESS (thin slice).
 - OOD (leave-one-domain-out Data2txt), conditional (Mondrian) + non-exchangeable variants,

@@ -1,0 +1,165 @@
+{
+  "model": "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli",
+  "n": {
+    "calib_temp": 1800,
+    "calib_conf": 3000,
+    "test": 6000
+  },
+  "calibration": {
+    "before": {
+      "ece": 0.3464344150306822,
+      "brier": 0.3355080676284188
+    },
+    "after": {
+      "ece": 0.36155047607091684,
+      "brier": 0.24535201507475127
+    },
+    "n": 1800,
+    "reliability_after": {
+      "bin_conf": [
+        0.03333333333333333,
+        0.1,
+        0.16666666666666669,
+        0.23333333333333334,
+        0.3294725376152905,
+        0.3809976671066048,
+        0.4349594005261017,
+        0.5015044292259446,
+        0.5653110427827358,
+        0.6150178112032852,
+        0.7,
+        0.7666666666666666,
+        0.8333333333333334,
+        0.9,
+        0.9666666666666667
+      ],
+      "bin_acc": [
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        1.0,
+        0.8936170212765957,
+        0.830238726790451,
+        0.8333333333333334,
+        0.9046762589928058,
+        0.9440993788819876,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN
+      ],
+      "bin_count": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        141,
+        377,
+        564,
+        556,
+        161,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "detection_test": {
+    "n": 6000,
+    "n_ungrounded": 499,
+    "base_rate": 0.08316666666666667,
+    "auroc": 0.607635194038322,
+    "auprc": 0.10184069022198869,
+    "f1@0.5": 0.18970736629667004,
+    "balanced_acc@0.5": 0.5833286278064218
+  },
+  "guarantee_single_split": [
+    {
+      "alpha": 0.01,
+      "threshold": 0.374,
+      "realized_fnr": 0.002,
+      "coverage": 0.02,
+      "contamination": 0.0083,
+      "joint": 0.0002
+    },
+    {
+      "alpha": 0.05,
+      "threshold": 0.4,
+      "realized_fnr": 0.0321,
+      "coverage": 0.103,
+      "contamination": 0.0259,
+      "joint": 0.0027
+    },
+    {
+      "alpha": 0.1,
+      "threshold": 0.42,
+      "realized_fnr": 0.0701,
+      "coverage": 0.1938,
+      "contamination": 0.0301,
+      "joint": 0.0058
+    }
+  ],
+  "guarantee_bootstrap": [
+    {
+      "alpha": 0.01,
+      "method": "crc",
+      "n_boot": 200,
+      "mean_realized_fnr": 0.00844639294421088,
+      "p95_realized_fnr": 0.021741361802563308,
+      "mean_coverage": 0.02872777777777778,
+      "mean_contamination": 0.023857744910728708,
+      "frac_exceed_alpha": 0.27
+    },
+    {
+      "alpha": 0.05,
+      "method": "crc",
+      "n_boot": 200,
+      "mean_realized_fnr": 0.047447926280319096,
+      "p95_realized_fnr": 0.07381022106818166,
+      "mean_coverage": 0.11588777777777778,
+      "mean_contamination": 0.0370523280778021,
+      "frac_exceed_alpha": 0.44
+    },
+    {
+      "alpha": 0.1,
+      "method": "crc",
+      "n_boot": 200,
+      "mean_realized_fnr": 0.09632394738980463,
+      "p95_realized_fnr": 0.13339743589743588,
+      "mean_coverage": 0.20766333333333337,
+      "mean_contamination": 0.042568256561350985,
+      "frac_exceed_alpha": 0.37
+    }
+  ],
+  "ablation_alpha0.05": {
+    "naive_0.5": {
+      "threshold": 0.5,
+      "realized_fnr": 0.4348697394789579,
+      "coverage": 0.5876666666666667,
+      "contamination": 0.06154282473057289
+    },
+    "quantile": {
+      "threshold": 0.40195993733850766,
+      "realized_fnr": 0.04008016032064128,
+      "coverage": 0.11116666666666666,
+      "contamination": 0.029985007496251874
+    },
+    "crc": {
+      "threshold": 0.4,
+      "realized_fnr": 0.03206412825651302,
+      "coverage": 0.103,
+      "contamination": 0.025889967637540454
+    },
+    "rcps_hoeffding": {
+      "threshold": 0.0,
+      "realized_fnr": 0.0,
+      "coverage": 0.0,
+      "contamination": 0.0
+    }
+  }
+}

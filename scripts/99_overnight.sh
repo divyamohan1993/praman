@@ -18,27 +18,28 @@ guard() { local f; f=$(free_gb); if [ "${f:-0}" -lt "$MIN_FREE_GB" ]; then
   echo "[$(stamp)] disk ${f}GB ok"; }
 stage() { echo "=== [$(stamp)] STAGE: $* ==="; }
 
-# Caps sized so even the torch fallback (~0.6s/claim) finishes overnight; ONNX int8 is ~4x
-# faster. Enough calib positives for alpha=0.01 to be feasible (calib_conf ~3k * ~11% ~ 330).
-FULL_TRAIN=${FULL_TRAIN:-6000}
-FULL_TEST=${FULL_TEST:-6000}
-OOD_TRAIN=${OOD_TRAIN:-5000}
-OOD_TEST=${OOD_TEST:-3000}
-OOD_OOD=${OOD_OOD:-4000}
-MAXLEN=${MAXLEN:-320}   # shorter seq -> faster on CPU; modest accuracy cost (logged)
-
-# Export ONNX int8 FIRST so scoring uses the fast VNNI path. If int8 export fails the
-# backend silently stays torch via the BK fallback below.
-stage "ONNX int8 export + latency benchmark"
-guard && $PY -u scripts/60_export_onnx.py --run-id full
+# SCORING BACKEND = torch. ONNX int8 of this DeBERTa-v3 degrades accuracy (scores diverge
+# from torch, corr ~0.72; disentangled-attention export). int8 is kept ONLY for the latency
+# benchmark (runs/full/latency.json, already measured), NOT for scoring. Caps cut to fit the
+# contended box (~1s/claim torch): calib_conf >= ~1.5k keeps alpha=0.01 feasible.
 BK=torch
-if [ -f artifacts/verifier_onnx/model_int8.onnx ] || [ -f artifacts/verifier_onnx/model.onnx ]; then
-  BK=onnx; echo "[$(stamp)] scoring backend = ONNX (fast path)"
+MAXLEN=${MAXLEN:-320}
+FULL_TRAIN=${FULL_TRAIN:-3000}    # -> calib_temp ~900, calib_conf ~1500 (~165 ungrounded positives)
+FULL_TEST=${FULL_TEST:-2000}
+OOD_TRAIN=${OOD_TRAIN:-2500}
+OOD_TEST=${OOD_TEST:-1500}
+OOD_OOD=${OOD_OOD:-2500}
+INDIC_N=${INDIC_N:-2000}
+
+# ONNX int8 export + latency: skip if already done (latency.json present from the prior run).
+if [ -f runs/full/latency.json ]; then
+  echo "[$(stamp)] latency.json present -> skip ONNX re-export (int8 latency already benchmarked)"
 else
-  echo "[$(stamp)] ONNX missing -> scoring backend = torch (slow fallback)"
+  stage "ONNX int8 export + latency benchmark"
+  guard && $PY -u scripts/60_export_onnx.py --run-id full
 fi
 
-stage "full score (backend=$BK, maxlen=$MAXLEN)"
+stage "full score (backend=$BK, maxlen=$MAXLEN) [correct numerics]"
 guard && $PY -u scripts/20_score.py --run-id full --backend $BK --max-length $MAXLEN \
   --max-train $FULL_TRAIN --max-test $FULL_TEST \
   && $PY -u scripts/30_pipeline.py --run-id full
@@ -51,7 +52,7 @@ guard && $PY -u scripts/20_score.py --run-id ood --ood-task Data2txt --backend $
 echo "[$(stamp)] ood rc=$?"
 
 stage "Indic slice (IndicXNLI Hindi + mDeBERTa-xnli)"
-guard && $PY -u scripts/50_indic.py --run-id indic
+guard && $PY -u scripts/50_indic.py --run-id indic --n $INDIC_N
 echo "[$(stamp)] indic rc=$?"
 # bring indic.json under runs/full so 90_report picks it up
 cp -f runs/indic/indic.json runs/full/indic.json 2>/dev/null || true
