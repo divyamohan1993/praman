@@ -3,10 +3,12 @@
 # Heavy artifacts (scores.npz, ONNX weights, model caches) stay on the box.
 # Usage (from repo root, on the dev machine):  bash scripts/sync_results.sh
 set -uo pipefail
-SSHK="${SSHK:-$HOME/.ssh/oci_dmj}"
-HOST="${HOST:-ubuntu@92.4.67.232}"
+# Parameterized: set these in your shell, never commit real host/key values.
+#   export SSHK=~/.ssh/your_key  HOST=user@your-vm-host  REMOTE=/home/you/praman
+SSHK="${SSHK:?set SSHK to your SSH private-key path}"
+HOST="${HOST:?set HOST to user@vm-host}"
 SSHOPT="-i $SSHK -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30"
-REMOTE="/home/ubuntu/praman"
+REMOTE="${REMOTE:-/home/ubuntu/praman}"
 
 mkdir -p runs/full runs/ood runs/indic artifacts
 # small json metrics + thresholds + plots

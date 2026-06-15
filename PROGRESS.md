@@ -47,7 +47,7 @@ static/per-channel int8. LLM-judge baseline + HF public push remain PARKED (cost
 # PROGRESS — PRAMAN build log
 
 Append-only cross-session memory (AGENTS.md). Newest entries at the bottom of each phase.
-Times in UTC. Box = OCI `dmj-docker-TEMP` (VM.Standard.E5.Flex, 12 vCPU AMD Genoa, CPU-only),
+Times in UTC. Box = OCI `the OCI E5 VM` (VM.Standard.E5.Flex, 12 vCPU AMD Genoa, CPU-only),
 project at `/home/ubuntu/praman`, venv at `.venv`. Co-hosted `udaan` Docker stack is NOT ours
 and must not be touched (disk floor 4GB guards its postgres).
 
@@ -136,7 +136,7 @@ and must not be touched (disk floor 4GB guards its postgres).
 ## RESUME PLAN (if a fresh session picks this up)
 Everything is authored in `d:\praman` (canonical). The box `/home/ubuntu/praman` has the venv +
 RAGTruth cache + the verifier model cached. To finish from cold:
-1. SSH: `ssh -i ~/.ssh/oci_dmj ubuntu@92.4.67.232` (box `dmj-docker-TEMP`, ap-mumbai-1).
+1. SSH: `ssh -i ~/.ssh/<ssh-key> <user>@<VM_HOST>` (box `the OCI E5 VM`, ).
 2. Sync code up: `tar czf - src scripts configs | ssh ... 'cd ~/praman && tar xzf -'`.
 3. Launch: `cd ~/praman && nohup nice -n 15 ionice -c3 bash scripts/99_overnight.sh > overnight.log 2>&1 &`
    (produces runs/full/{metrics,latency,tokens}.json, runs/ood/robustness.json, runs/indic/indic.json,
