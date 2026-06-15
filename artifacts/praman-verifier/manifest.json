@@ -1,0 +1,24 @@
+{
+  "name": "praman-verifier",
+  "version": "0.1.0",
+  "verifier_config": {
+    "hf_id": "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli",
+    "kind": "nli",
+    "entailment_label": "entailment",
+    "max_length": 512,
+    "multi_passage": "max",
+    "batch_size": 16,
+    "evidence_char_cap": 4000
+  },
+  "id2label": {
+    "0": "entailment",
+    "1": "neutral",
+    "2": "contradiction"
+  },
+  "versions": {
+    "model": "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli",
+    "calib": "temperature",
+    "risk": "crc"
+  },
+  "backend": "torch"
+}

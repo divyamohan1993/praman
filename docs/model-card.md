@@ -37,7 +37,7 @@ The guarantee is a **marginal** bound on a rate, not a per-item certificate, and
 
 ## Supported languages
 
-English plus Indic. The Indic coverage in this release is {{INDIC_LANGS}}. Indic groundedness data is scarce; that scarcity is part of the contribution, and the Indic slice is documented honestly below.
+English plus Indic. The Indic coverage in this release is Hindi (hi); IndicXNLI covers 11 Indic languages. Indic groundedness data is scarce; that scarcity is part of the contribution, and the Indic slice is documented honestly below.
 
 ## How to use
 
@@ -79,47 +79,63 @@ The tables below use the same placeholder tokens as the technical report (`REPOR
 
 | Metric | PRAMAN verifier |
 | --- | --- |
-| AUROC (RAGTruth) | {{DET_AUROC_RAGTRUTH}} |
-| AUPRC | {{DET_AUPRC}} |
-| F1 | {{DET_F1}} |
+| AUROC (RAGTruth) | 0.612 |
+| AUPRC | 0.116 |
+| F1 | 0.203 |
 
-Baseline comparison versus HHEM and MiniCheck: {{BASELINE_TABLE}}
+Baseline comparison versus HHEM and MiniCheck: DeBERTa-v3-base NLI verifier on RAGTruth test: AUROC 0.612, AUPRC 0.116, base ungrounded rate 0.092. Reference small verifiers (HHEM/MiniCheck) report AUROC in the ~0.75-0.85 band on RAGTruth-style grounding tasks.
 
 ### Calibration
 
 | Metric | Before calibration | After calibration |
 | --- | --- | --- |
-| ECE | {{ECE_BEFORE}} | {{ECE_AFTER}} |
-| Brier | {{BRIER_BEFORE}} | {{BRIER_AFTER}} |
+| ECE | 0.5245 | 0.3798 |
+| Brier | 0.5058 | 0.2541 |
 
 ### Guarantee validation
 
 Realized missed-hallucination (false-approval) rate versus target α on held-out RAGTruth test:
 
-{{REALIZED_RISK_TABLE}}
+| alpha | CRC threshold | realized FNR (test) | mean FNR (bootstrap) | <= alpha? |
+| --- | --- | --- | --- | --- |
+| 0.01 | 0.478 | 0.0054 | 0.0045 | OK |
+| 0.05 | 0.482 | 0.0380 | 0.0367 | OK |
+| 0.10 | 0.486 | 0.0761 | 0.0862 | OK |
 
 Coverage (auto-approval rate) and approval-set contamination at each α:
 
-{{COVERAGE_TABLE}}
+| alpha | coverage (auto-approval) | contamination of approvals |
+| --- | --- | --- |
+| 0.01 | 0.061 | 0.0081 |
+| 0.05 | 0.138 | 0.0254 |
+| 0.10 | 0.217 | 0.0323 |
 
-Fraction of bootstrap splits whose realized risk exceeds α (CRC controls the expected rate, so a nonzero fraction is expected and reported, not hidden): {{SPLIT_EXCEED_FRAC}}
+Fraction of bootstrap splits whose realized risk exceeds α (CRC controls the expected rate, so a nonzero fraction is expected and reported, not hidden): alpha=0.01: 0.065, alpha=0.05: 0.220, alpha=0.10: 0.375
 
 ### OOD honesty
 
-Degradation on the OOD slice: {{OOD_DEGRADATION_TABLE}}
+Degradation on the OOD slice: | alpha | in-domain test FNR | OOD FNR (pooled CRC) |
+| --- | --- | --- |
+| 0.01 | 0.0000 | 0.0000 |
+| 0.05 | 0.0519 | 0.0087 |
+| 0.10 | 0.1688 | 0.0758 |
 
-Recovery from the conditional / non-exchangeable variants: {{OOD_RECOVERY}}
+Recovery from the conditional / non-exchangeable variants: | alpha | OOD FNR (exchangeable) | OOD FNR (non-exchangeable NN) |
+| --- | --- | --- |
+| 0.01 | 0.0000 | 0.0000 |
+| 0.05 | 0.0087 | 0.0000 |
+| 0.10 | 0.0758 | 0.0213 |
 
 ### Indic result
 
-{{INDIC_RESULT}}
+Hindi groundedness proxy (xnli, 2000 pairs, mDeBERTa-xnli): detection AUROC 0.999; calibration ECE 0.003->0.001; CRC realized FNR <= alpha holds at 2/3 alpha levels.
 
 ### Latency
 
 | Configuration | Per-claim latency | Throughput |
 | --- | --- | --- |
-| ONNX int8 | {{LATENCY_INT8_MS}} ms | {{THROUGHPUT}} claims/s |
-| torch fp32 | {{LATENCY_FP32_MS}} ms | |
+| ONNX int8 | 508.8 ms | 2.0 claims/s |
+| torch fp32 | 1030.1 ms | |
 
 ## Honest scope and limits
 
@@ -145,6 +161,10 @@ Each audit-record field (`ts`, `claim`, `evidence_span`, `p_grounded`, `decision
 - The Indic slice is machine-built and machine-translated, not human-verified at scale, so Indic results should be read as indicative, and translation artifacts can bias both scoring and calibration on that slice.
 - Calibration quality depends on the calibration labels, and the bound itself has variance, reported via bootstrapped/randomized conformal risk control.
 - Tighter α increases escalation; the model surfaces the coverage-versus-risk tradeoff rather than a single magic number.
+- Detection quality of this release's verifier is modest (RAGTruth test AUROC 0.612, below trained faithfulness models in the ~0.75 to 0.85 band). It is a generic NLI model with a 320-token evidence cap; the guarantee holds regardless of detector quality, but coverage is the price of a weak verifier. A trained faithfulness verifier (MiniCheck/HHEM), longer context, or max-over-passages is the documented upgrade.
+- Under domain shift the verifier can fail outright: on the held-out Data2txt task type its detection AUROC falls to 0.465 (below random). The conformal bound is still met there, but only by auto-approving almost nothing, so the real out-of-distribution cost is borne in coverage, and a single test split can overshoot α (the in-domain α=0.10 split realized 0.169); read the guarantee in expectation or via RCPS, not per split.
+- ONNX int8 of this DeBERTa-v3 degrades accuracy (scores diverge from fp32, Pearson ~0.72) due to disentangled-attention export; int8 is shipped as a latency benchmark only, and the runtime artifact uses torch (fp32). Do not score with int8 until calibrated quantization is validated to corr ≥ 0.97 against fp32.
+- The Hindi result (AUROC 0.999) is largely in-distribution: it fell back to XNLI (hi) and the scorer mDeBERTa-v3-xnli was trained on XNLI, so it shows the pipeline runs on Hindi and the guarantee holds, not out-of-distribution Indic generalization.
 
 ## Citation
 

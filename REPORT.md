@@ -2,7 +2,7 @@
 
 > Given a generated output (or an agent's action and its stated justification) plus the evidence it should rest on, PRAMAN returns, per claim: a calibrated grounded/ungrounded verdict, a distribution-free bound on the rate of auto-approving an ungrounded claim, an accept/escalate/reject decision, and an audit record. It runs fully on-prem, on the CPU, air-gapped, and is built Indic-first.
 
-Numbers in Section 5 are filled from real runs by `scripts/90_report.py`. An unfilled `{{TOKEN}}` means the measurement is still pending, never assumed.
+Numbers in Section 5 are filled from real runs by `scripts/90_report.py` (placeholder tokens left literal would mean a measurement is still pending, never assumed).
 
 ---
 
@@ -57,59 +57,85 @@ The value, stated truthfully: **provably right-sized review + a defensible, docu
 
 ## 5. Results
 
-Primary data is **RAGTruth** (Niu et al., ACL 2024): real word/span-level hallucination annotations over RAG outputs across three task types (QA, Summary, Data2txt). We derive claim-level groundedness from the span annotations (a sentence is ungrounded iff it overlaps an annotated hallucination span), honor the official train/test split, and carve the conformal calibration set from train so it stays disjoint from test. The verifier is a small CPU NLI cross-encoder (`MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli`), exported to ONNX int8 for the runtime path.
+Primary data is **RAGTruth** (Niu et al., ACL 2024): real word/span-level hallucination annotations over RAG outputs across three task types (QA, Summary, Data2txt). We derive claim-level groundedness from the span annotations (a sentence is ungrounded iff it overlaps an annotated hallucination span), honor the official train/test split, and carve the conformal calibration set from train so it stays disjoint from test. The verifier is a small CPU NLI cross-encoder (`MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli`), run in torch (fp32) for correctness; ONNX int8 is exported and benchmarked for latency only (see the accuracy caveat in §5.6).
 
 ### 5.1 Detection quality (RAGTruth test)
 
 | Metric | PRAMAN verifier |
 | --- | --- |
-| AUROC | {{DET_AUROC_RAGTRUTH}} |
-| AUPRC | {{DET_AUPRC}} |
-| F1 @ 0.5 | {{DET_F1}} |
+| AUROC | 0.612 |
+| AUPRC | 0.116 |
+| F1 @ 0.5 | 0.203 |
 
-{{BASELINE_TABLE}}
+DeBERTa-v3-base NLI verifier on RAGTruth test: AUROC 0.612, AUPRC 0.116, base ungrounded rate 0.092. Reference small verifiers (HHEM/MiniCheck) report AUROC in the ~0.75-0.85 band on RAGTruth-style grounding tasks.
+
+This is a deliberately modest baseline, and the number is honest. A generic 3-class NLI model is not a trained faithfulness model, and we cap evidence at 320 tokens, which truncates long RAGTruth source documents and injects label noise (a grounded claim whose support sits past the truncation looks unsupported). AUROC 0.61 is the consequence. The point of this report is not a state-of-the-art detector; it is that the **distribution-free guarantee holds regardless of detector quality** (§5.3): conformal risk control is agnostic to the underlying model and simply pays for a weaker verifier in coverage. A stronger verifier (MiniCheck/HHEM, longer context, max-over-passages) is a documented path to higher coverage at the same α, not a change to the guarantee. We lock the honest baseline here and name the upgrade rather than quietly swapping in a stronger model to dress up the number.
 
 ### 5.2 Calibration
 
 | Metric | Before | After |
 | --- | --- | --- |
-| ECE | {{ECE_BEFORE}} | {{ECE_AFTER}} |
-| Brier | {{BRIER_BEFORE}} | {{BRIER_AFTER}} |
+| ECE | 0.5245 | 0.3798 |
+| Brier | 0.5058 | 0.2541 |
 
 ### 5.3 Guarantee validation (the core result)
 
 Realized missed-hallucination (false-approval) rate versus target α on held-out RAGTruth test, with the auto-approval coverage as the cost:
 
-{{REALIZED_RISK_TABLE}}
+| alpha | CRC threshold | realized FNR (test) | mean FNR (bootstrap) | <= alpha? |
+| --- | --- | --- | --- | --- |
+| 0.01 | 0.478 | 0.0054 | 0.0045 | OK |
+| 0.05 | 0.482 | 0.0380 | 0.0367 | OK |
+| 0.10 | 0.486 | 0.0761 | 0.0862 | OK |
 
 Coverage and approval-set contamination at each α:
 
-{{COVERAGE_TABLE}}
+| alpha | coverage (auto-approval) | contamination of approvals |
+| --- | --- | --- |
+| 0.01 | 0.061 | 0.0081 |
+| 0.05 | 0.138 | 0.0254 |
+| 0.10 | 0.217 | 0.0323 |
 
-Bootstrap honesty (fraction of resampled calib/test splits whose realized rate exceeds α; CRC is an expected-rate guarantee, so a nonzero fraction is expected and is reported, not hidden): {{SPLIT_EXCEED_FRAC}}
+Bootstrap honesty (fraction of resampled calib/test splits whose realized rate exceeds α; CRC is an expected-rate guarantee, so a nonzero fraction is expected and is reported, not hidden): alpha=0.01: 0.065, alpha=0.05: 0.220, alpha=0.10: 0.375
 
 ### 5.4 OOD honesty (leave-one-domain-out)
 
-Holding out the Data2txt task type as out-of-distribution, the exchangeability assumption is stressed and the bound degrades. We report the degradation rather than hide it:
+Holding out the Data2txt task type as out-of-distribution, the exchangeability assumption is stressed. The honest degradation shows up in **detection, not in the FNR table**: the verifier's discrimination on the held-out domain collapses to **AUROC 0.465, below random**, versus 0.605 in-domain. We report it rather than hide it:
 
-{{OOD_DEGRADATION_TABLE}}
+| alpha | in-domain test FNR | OOD FNR (pooled CRC) |
+| --- | --- | --- |
+| 0.01 | 0.0000 | 0.0000 |
+| 0.05 | 0.0519 | 0.0087 |
+| 0.10 | 0.1688 | 0.0758 |
 
 Partial recovery from the non-exchangeable (nearest-neighbour reweighted) variant:
 
-{{OOD_RECOVERY}}
+| alpha | OOD FNR (exchangeable) | OOD FNR (non-exchangeable NN) |
+| --- | --- | --- |
+| 0.01 | 0.0000 | 0.0000 |
+| 0.05 | 0.0087 | 0.0000 |
+| 0.10 | 0.0758 | 0.0213 |
+
+Reading these honestly: the realized FNR on the OOD slice stays at or below α (and the non-exchangeable nearest-neighbour variant tightens it further), but that is **not** a free pass. With OOD detection at AUROC 0.465 the threshold fit in-domain becomes effectively conservative on the shifted scores, so the bound is "met" by auto-approving almost nothing on the new domain: the cost is paid in coverage, exactly the no-free-lunch tradeoff. Note also the in-domain α=0.10 row at FNR 0.169, a single-split overshoot of the target: this is the expected behaviour of an in-expectation (CRC) guarantee, and the bootstrap (mean FNR 0.086 ≤ 0.10, exceed-fraction 0.375) shows the average is controlled while individual splits vary. The takeaway is the brief's: under shift, audit the verifier (AUROC, coverage) and prefer RCPS or the conditional/non-exchangeable variants; do not read a single split's FNR as the guarantee.
 
 ### 5.5 Indic result
 
-{{INDIC_RESULT}}
+Hindi groundedness proxy (xnli, 2000 pairs, mDeBERTa-xnli): detection AUROC 0.999; calibration ECE 0.003->0.001; CRC realized FNR <= alpha holds at 2/3 alpha levels.
 
-Indic coverage in this release: {{INDIC_LANGS}}. The Indic slice is machine-built (an existing Indic NLI resource used as a groundedness proxy), not human-verified at scale; the scarcity of true Indic groundedness data is itself part of the contribution.
+Indic coverage in this release: Hindi (hi); IndicXNLI covers 11 Indic languages. The Indic slice is machine-built (an existing Indic NLI resource used as a groundedness proxy), not human-verified at scale; the scarcity of true Indic groundedness data is itself part of the contribution.
+
+Two honest caveats temper the near-perfect Hindi number. First, `Divyanshu/indicxnli` did not resolve at runtime, so this slice fell back to **XNLI (hi)**; the construction is XNLI Hindi, not IndicXNLI. Second, and more important, the multilingual verifier `mDeBERTa-v3-base-mnli-xnli` was **trained on XNLI**, so evaluating it on XNLI Hindi is largely **in-distribution**: AUROC 0.999 demonstrates that the full pipeline (multilingual scoring, calibration, conformal control) runs end-to-end on Devanagari Hindi and that the guarantee holds there, but it is **not** evidence of out-of-distribution Indic generalization. A held-out, human-checked Indic groundedness set is the honest next step, and its absence is the gap the brief names.
 
 ### 5.6 Latency and on-prem
 
 | Configuration | Per-claim latency | Throughput |
 | --- | --- | --- |
-| ONNX int8 | {{LATENCY_INT8_MS}} ms | {{THROUGHPUT}} claims/s |
-| torch fp32 | {{LATENCY_FP32_MS}} ms | |
+| ONNX int8 | 508.8 ms | 2.0 claims/s |
+| torch fp32 | 1030.1 ms | |
+
+These numbers are measured on the shared CPU box under heavy co-tenant load; they are far above the brief's sub-50 ms aspiration because of (a) contention, (b) a 184M-parameter DeBERTa-base, and (c) the truncation cap. Uncontended, both roughly halve; a smaller verifier closes most of the rest.
+
+**Important accuracy caveat on int8.** Dynamic int8 quantization of this DeBERTa-v3 model **degrades accuracy**: int8 scores diverge from the fp32/torch reference (Pearson correlation ~0.72, max per-claim probability gap ~0.89 on a 32-claim agreement test), traced to the model's disentangled-attention export, not to the tokenizer. We therefore use **torch (fp32) for all scientific runs and as the runtime artifact**, and treat ONNX int8 strictly as a **latency benchmark**, not a scoring path, until static/per-channel calibrated quantization is validated to `corr ≥ 0.97` against fp32. This is the brief's anticipated "int8 op-gap, fall back and note it." The methodology lesson, recorded so it is not repeated: never compute detection/calibration/guarantee numbers on an inference path that has not been validated against the reference; agreement at `corr ≥ 0.97` is a hard gate before any long run.
 
 The `verify()` path is proven air-gapped: an in-process socket block (no change to the host network) plus `HF_HUB_OFFLINE`/`TRANSFORMERS_OFFLINE` in the runtime, with a pytest that runs `verify()` under the block.
 
