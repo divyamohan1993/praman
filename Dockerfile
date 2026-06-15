@@ -38,11 +38,14 @@ ENV PATH="/opt/venv/bin:$PATH" \
     HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 TOKENIZERS_PARALLELISM=false \
     OMP_NUM_THREADS=4 PRAMAN_THREADS=4 PORT=8080
 RUN useradd -m -u 10001 praman
-COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /app/artifacts /app/artifacts
-COPY --from=builder /app/src /app/src
-COPY --from=builder /app/configs /app/configs
-COPY --from=builder /app/pyproject.toml /app/pyproject.toml
+# --chown + a+rX: save_pretrained writes model.safetensors as 0600 root-owned; the non-root
+# runtime user must be able to read it (else transformers reports the weights "not found").
+COPY --from=builder --chown=praman:praman /opt/venv /opt/venv
+COPY --from=builder --chown=praman:praman /app/artifacts /app/artifacts
+COPY --from=builder --chown=praman:praman /app/src /app/src
+COPY --from=builder --chown=praman:praman /app/configs /app/configs
+COPY --from=builder --chown=praman:praman /app/pyproject.toml /app/pyproject.toml
+RUN chmod -R a+rX /app/artifacts
 WORKDIR /app
 USER praman
 EXPOSE 8080
