@@ -10,9 +10,12 @@ POST /verify. The verify path makes no external network calls.
 from __future__ import annotations
 
 import os
+import secrets
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+from ._web import PAGE
 
 try:
     from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -71,43 +74,17 @@ _SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
-    # No scripts (script-src falls back to default-src 'none'); inline styles only for the
-    # landing page; everything else locked down.
-    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; "
-                               "base-uri 'none'; frame-ancestors 'none'",
+    # Strict default for API/JSON responses. The HTML landing route sets its own (nonce) CSP.
+    "Content-Security-Policy": "default-src 'none'; base-uri 'none'; frame-ancestors 'none'",
 }
 
-_LANDING = """<!doctype html><html lang=en><head><meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1"><title>PRAMAN</title>
-<style>
-:root{color-scheme:dark}*{box-sizing:border-box}
-body{margin:0;background:#0a0e14;color:#cdd6e4;font:15px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:2rem}
-.card{max-width:760px;width:100%}
-h1{font-size:2.6rem;margin:0;letter-spacing:.04em;color:#e8eef5}
-.dev{color:#5b6b7f;font-weight:400;font-size:1.4rem}
-.live{display:inline-block;margin:.4rem 0 1.2rem;font-size:.8rem;color:#3fb950}
-.live b{display:inline-block;width:.55rem;height:.55rem;background:#3fb950;border-radius:50%;margin-right:.4rem;box-shadow:0 0 8px #3fb950}
-p{color:#9aa7b8}.lead{color:#cdd6e4;font-size:1.05rem}
-pre{background:#11161f;border:1px solid #1e2733;border-radius:10px;padding:1rem;overflow:auto;color:#a9c7e8;font-size:13px}
-a{color:#58a6ff;text-decoration:none}a:hover{text-decoration:underline}
-.row{display:flex;gap:1.4rem;flex-wrap:wrap;margin-top:1.2rem;font-size:.92rem}
-.note{margin-top:1.6rem;font-size:.82rem;color:#5b6b7f;border-top:1px solid #1e2733;padding-top:1rem}
-</style></head><body><div class=card>
-<h1>PRAMAN <span class=dev>प्रमाण</span></h1>
-<div class=live><b></b>live</div>
-<p class=lead>On-prem, CPU-only, Indic-first grounded-claim verifier. Give it a generated output plus its evidence; it returns, per claim, a calibrated grounded/ungrounded verdict, a <b>distribution-free bound</b> on the rate of auto-approving an ungrounded claim, an accept / escalate / reject decision, and an audit record.</p>
-<pre>curl -X POST https://praman.dmj.one/verify \\
-  -H 'Content-Type: application/json' \\
-  -d '{"output_text":"The drug was approved in 2019.",
-       "evidence":["The agency approved the drug in 2021."],
-       "alpha":0.05}'</pre>
-<div class=row>
-<a href="/docs">&#8594; Interactive API (/docs)</a>
-<a href="/health">&#8594; Health</a>
-<a href="https://github.com/divyamohan1993/praman">&#8594; Source + report</a>
-</div>
-<p class=note>It bounds a <b>rate</b>, not each item: a marginal guarantee, not a per-item certificate. It checks faithfulness to the supplied evidence, not truth in the world. It does not remove the human on catastrophic or irreversible decisions. This managed-cloud endpoint is a demo; the product runs air-gapped on the operator's own hardware.</p>
-</div></body></html>"""
+
+def _landing_csp(nonce: str) -> str:
+    # nonce-based: the landing's inline <script> carries this nonce; inline styles allowed;
+    # connect-src 'self' lets the demo fetch /verify; everything else locked down.
+    return ("default-src 'none'; script-src 'nonce-{n}'; style-src 'unsafe-inline'; "
+            "connect-src 'self'; img-src data:; base-uri 'none'; "
+            "form-action 'none'; frame-ancestors 'none'").format(n=nonce)
 
 
 if FastAPI is not None:
@@ -120,12 +97,14 @@ if FastAPI is not None:
     async def _headers(request: "Request", call_next):
         resp = await call_next(request)
         for k, v in _SECURITY_HEADERS.items():
-            resp.headers[k] = v
+            resp.headers.setdefault(k, v)  # a route may set its own (e.g. nonce CSP); don't clobber
         return resp
 
     @app.get("/", response_class=HTMLResponse)
-    def root() -> str:
-        return _LANDING
+    def root() -> HTMLResponse:
+        nonce = secrets.token_urlsafe(16)
+        html = PAGE.replace("__NONCE__", nonce)
+        return HTMLResponse(html, headers={"Content-Security-Policy": _landing_csp(nonce)})
 
     @app.get("/health")
     def health() -> dict[str, str]:
